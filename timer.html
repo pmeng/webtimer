@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Timer</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    #timer { font-size: 48px; margin: 20px 0; }
+    button { margin: 5px; padding: 10px 20px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Timer Webapplikation</h1>
+  <div id="timer">00:00</div>
+  <div id="timeButtons"></div>
+  <button onclick="startTimer()">Start</button>
+  <button onclick="stopTimer()">Stopp</button>
+
+  <script>
+    // Konfiguration: Erlaube folgende Timer-Dauern (in Minuten)
+    const timerConfigurations = [5, 10, 15, 20, 30, 45, 60]; // Hier weitere Werte hinzufügen
+
+    let timerDuration = 0;
+    let remainingTime = 0;
+    let timerInterval = null;
+    let alertInterval = null;
+
+    let alerted30 = false;
+    let alerted15 = false;
+    let timeOver = false;
+
+    function createButtons() {
+      const container = document.getElementById('timeButtons');
+      timerConfigurations.forEach(min => {
+        const btn = document.createElement('button');
+        btn.textContent = `${min} Minuten`;
+        btn.onclick = () => setTimer(min);
+        container.appendChild(btn);
+      });
+    }
+
+    function setTimer(min) {
+      stopTimer();
+      timerDuration = min * 60; // Sekunden
+      remainingTime = timerDuration;
+      alerted30 = false;
+      alerted15 = false;
+      timeOver = false;
+      updateDisplay();
+    }
+
+    function updateDisplay() {
+      let absTime = Math.abs(remainingTime);
+      const min = Math.floor(absTime / 60).toString().padStart(2, '0');
+      const sec = (absTime % 60).toString().padStart(2, '0');
+      document.getElementById('timer').textContent = `${remainingTime < 0 ? '-' : ''}${min}:${sec}`;
+    }
+
+    function playBeeps(n) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      for (let i = 0; i < n; i++) {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(4000, audioCtx.currentTime + i * 0.4);
+        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.4);
+        oscillator.start(audioCtx.currentTime + i * 0.4);
+        oscillator.stop(audioCtx.currentTime + i * 0.4 + 0.2);
+      }
+    }
+
+    function startTimer() {
+      if (timerInterval) return;
+      playBeeps(1); // Testton beim Start
+      timerInterval = setInterval(() => {
+        remainingTime--;
+        updateDisplay();
+
+        const percentLeft = remainingTime / timerDuration;
+
+        if (!alerted30 && percentLeft <= 0.3 && remainingTime > 0) {
+          playBeeps(1);
+          alerted30 = true;
+        }
+
+        if (!alerted15 && percentLeft <= 0.15 && remainingTime > 0) {
+          playBeeps(2);
+          alerted15 = true;
+        }
+
+        if (remainingTime <= 0 && !timeOver) {
+          playBeeps(3);
+          timeOver = true;
+          alertInterval = setInterval(() => playBeeps(3), 2 * 60 * 1000); // alle 2 Minuten
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      clearInterval(alertInterval);
+      timerInterval = null;
+      alertInterval = null;
+    }
+
+    createButtons();
+  </script>
+</body>
+</html>
